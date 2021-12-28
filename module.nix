@@ -53,15 +53,15 @@ in {
 
     # Add user and group
     users.users = lib.mkIf (cfg.user == "fildela") {
-      servera = {
+      fildela = {
         group = cfg.group;
         home = cfg.dataDir;
-        uid = config.ids.uids.servera;
+        uid = config.ids.uids.fildela;
       };
     };
 
     users.groups = lib.mkIf (cfg.group == "fildela") {
-      servera.gid = config.ids.gids.servera;
+      fildela.gid = config.ids.gids.fildela;
     };
   };
 }
