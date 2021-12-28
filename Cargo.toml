@@ -1,0 +1,13 @@
+[package]
+name = "fildela"
+version = "0.1.0"
+authors = ["NomisIV <simon@nomisiv.com>"]
+edition = "2018"
+description = "fildela - file sharing service"
+homepage = "https://fs.nomisiv.com"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hyper = { version = "0.14.16", features = [ "full" ] }
+tokio = { version = "1.14.0", features = [ "full" ] }
