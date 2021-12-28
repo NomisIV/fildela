@@ -1,5 +1,5 @@
 { lib, config, pkgs, ... }: let
-  cfg = config.services.servera;
+  cfg = config.services.fildela;
 in {
   options.services.fildela = with lib; {
     enable = mkEnableOption "fildela HTTP file server";
