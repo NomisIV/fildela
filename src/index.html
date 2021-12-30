@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Fildela HTTP file server</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      h1, h2, p {
+        font-family: -apple-system, system-ui, BlinkMacSystemFont, Arial, sans-serif;
+      }
+
+      .flex {
+        display: flex;
+      }
+
+      .horizontal-responsive {
+        flex-direction: row;
+      }
+
+      .center {
+        text-align: center;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .box {
+        max-width: 512px;
+        width: 100%;
+        height: 256px;
+        margin: 20px;
+        background-color: whitesmoke;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        html, body {
+          background-color: #282828;
+          color: white;
+        }
+
+        .box {
+          background-color: #3c3638;
+        }
+      }
+
+      @media screen and (max-width: 800px) {
+        .horizontal-responsive {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1 class="center">Fildela</h1>
+    <div class="flex horizontal-responsive center">
+      <div class="box center">
+        <h2>Upload file:</h2>
+        <input type="file" id="file-upload">
+        <button onClick="upload()">Upload file</button>
+      </div>
+
+      <div class="box center">
+        <h2>Download file:</h2>
+        <input type="text" id="file-download">
+        <button onClick="download()">Download file</button>
+      </div>
+    </div>
+
+    <script>
+      function upload() {
+        const status_map = {
+          200: "File submitted successfully!",
+          507: "File could not be submitted!"
+        }
+        const file_element = document.getElementById("file-upload");
+
+        const req = new XMLHttpRequest();
+        req.onreadystatechange = () => {
+          if (req.readyState == 4) {
+            alert(status_map[req.status])
+            if (req.status == 200) {
+              file.value = "";
+            }
+          }
+        }
+        req.open("POST", file.name)
+        req.send(file.files[0])
+      }
+
+      function download() {
+        const file_element = document.getElementById("file-download");
+        window.location.replace(file_element.value)
+      }
+    </script>
+  </body>
+</html>

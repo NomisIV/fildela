@@ -1,10 +1,14 @@
+use hyper::body;
+use hyper::header;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use std::convert::Infallible;
 use std::env;
+use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::str::FromStr;
 use tokio::fs;
 
 #[derive(Clone)]
@@ -18,52 +22,84 @@ async fn shutdown_signal() {
         .expect("failed to install CTRL+C signal handler");
 }
 
+async fn serve_files(method: &Method, local_path: PathBuf, data: body::Bytes) -> Response<Body> {
+    match match *method {
+        Method::GET => match fs::read(&local_path).await {
+            Ok(data) => {
+                let file_name = local_path.file_name().unwrap().to_str().unwrap();
+                let response = Response::builder()
+                    .status(StatusCode::OK)
+                    .header(
+                        header::CONTENT_DISPOSITION,
+                        format!("attachment; filename=\"{}\"", file_name),
+                    )
+                    .body(data.into())
+                    .unwrap();
+                Ok(response)
+            }
+            Err(_) => Err(StatusCode::NOT_FOUND),
+        },
+
+        Method::POST | Method::PUT => match fs::write(&local_path, data).await {
+            Ok(_) => Ok(Response::default()),
+            Err(err) => Err(match err.kind() {
+                ErrorKind::AlreadyExists => StatusCode::CONFLICT,
+                // ErrorKind::StorageFull => StatusCode::INSUFFICIENT_STORAGE,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            }),
+        },
+
+        Method::DELETE => match fs::remove_file(&local_path).await {
+            Ok(_) => Ok(Response::default()),
+            Err(_) => Err(StatusCode::NOT_FOUND),
+        },
+        _ => Result::Err(StatusCode::METHOD_NOT_ALLOWED),
+    } {
+        Ok(response) => response,
+        Err(status) => Response::builder()
+            .status(status)
+            .body(Body::empty())
+            .unwrap(),
+    }
+}
+
+fn serve_index(method: &Method) -> Response<Body> {
+    // TODO: Allow specifying the html file through a configuration file
+    match match *method {
+        Method::GET => Ok((StatusCode::OK, include_str!("index.html").into())),
+        _ => Result::Err(StatusCode::METHOD_NOT_ALLOWED),
+    } {
+        Ok((status, body)) => Response::builder().status(status).body(body),
+        Err(status) => Response::builder().status(status).body(Body::empty()),
+    }
+    .unwrap()
+}
+
 async fn serve(
     mut req: Request<Body>,
     ip: SocketAddr,
     context: AppContext,
 ) -> Result<Response<Body>, hyper::Error> {
+    let method = req.method().clone();
+
     let path: PathBuf = req.uri().path().into();
-    let local_path = context.root.join(path.strip_prefix("/").unwrap());
 
-    let body = req.body_mut();
-    let data = hyper::body::to_bytes(body).await.unwrap(); // TODO: unwrap
-
-    let response = match match *req.method() {
-        // TODO: [GET /] should return an index page which helps the user to upload or download
-        // files. This can be a static html page which is included into the binary itself for less
-        // dependencies.
-        Method::GET => match fs::read(local_path).await {
-            Ok(data) => Ok((StatusCode::OK, data.into())),
-            Err(_) => Err(StatusCode::NOT_FOUND)
-        },
-        Method::POST => match fs::write(local_path, data).await {
-            Ok(()) => Ok((StatusCode::OK, Body::empty())),
-            Err(_) => Err(StatusCode::INSUFFICIENT_STORAGE)
-        },
-        Method::PUT => match fs::write(local_path, data).await {
-            Ok(()) => Ok((StatusCode::OK, Body::empty())),
-            Err(_) => Err(StatusCode::INSUFFICIENT_STORAGE)
-        },
-        Method::DELETE => match fs::remove_file(local_path).await {
-            Ok(()) => Ok((StatusCode::OK, Body::empty())),
-            Err(_) => Err(StatusCode::NOT_FOUND)
-        },
-        _ => Result::Err(StatusCode::METHOD_NOT_ALLOWED),
-    } {
-        Ok((status, body)) => Response::builder().status(status).body(body).unwrap(),
-        Err(status) => Response::builder()
-            .status(status)
-            .body(Body::empty())
-            .unwrap(),
+    // TODO: Improve logic for which server to use
+    let response = if path == PathBuf::from_str("/").unwrap() {
+        serve_index(&method)
+    } else {
+        let local_path = context.root.join(path.strip_prefix("/").unwrap());
+        let body = req.body_mut();
+        let data = hyper::body::to_bytes(body).await.unwrap(); // TODO: unwrap
+        serve_files(&method, local_path, data).await
     };
 
     let log_line = format!(
         "[{status}] {ip} {method} {uri}",
         status = response.status().as_u16(),
         ip = ip,
-        method = req.method(),
-        uri = req.uri().path()
+        method = method,
+        uri = path.display()
     );
     if response.status() == 200 {
         println!("{}", log_line);
