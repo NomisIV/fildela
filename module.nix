@@ -12,7 +12,7 @@ in {
       description = "The port to serve at";
     };
 
-    root = mkOption {
+    dataDir = mkOption {
       type = types.str;
       default = "/var/lib/fildela";
       description = "The location of the file root";
@@ -40,7 +40,7 @@ in {
       wantedBy = [ "multi-user.target" ];
 
       serviceConfig = {
-        ExecStart = "${pkgs.fildela}/bin/fildela ${toString cfg.port} ${cfg.root}";
+        ExecStart = "${pkgs.fildela}/bin/fildela ${toString cfg.port} ${cfg.dataDir}";
         User = cfg.user;
         Group = cfg.group;
       };
