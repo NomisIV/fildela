@@ -4,7 +4,7 @@ in {
   options.services.fildela = with lib; {
     enable = mkEnableOption "fildela HTTP file server";
 
-    openFirewall = mkEnableOption "open the port for servera in the firewall";
+    openFirewall = mkEnableOption "open the port for fildela in the firewall";
 
     port = mkOption {
       type = types.port;
@@ -32,7 +32,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    # Main servera service
+    # Main fildela service
     systemd.services.fildela = {
       description = "fildela HTTP file server";
       after = [ "network.target" ];
