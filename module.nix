@@ -56,12 +56,12 @@ in {
       fildela = {
         group = cfg.group;
         home = cfg.dataDir;
-        uid = config.ids.uids.fildela;
+        uid = 351;
       };
     };
 
     users.groups = lib.mkIf (cfg.group == "fildela") {
-      fildela.gid = config.ids.gids.fildela;
+      fildela.gid = 351;
     };
   };
 }
